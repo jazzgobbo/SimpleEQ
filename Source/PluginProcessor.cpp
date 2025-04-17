@@ -150,6 +150,7 @@ void SimpleEQAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
     // the samples and the outer loop is handling the channels.
     // Alternatively, you can process the samples with the channels
     // interleaved by keeping the same state.
+    // this is where we do all the work and make sure it does it in time
     for (int channel = 0; channel < totalNumInputChannels; ++channel)
     {
         auto* channelData = buffer.getWritePointer (channel);
@@ -166,7 +167,8 @@ bool SimpleEQAudioProcessor::hasEditor() const
 
 juce::AudioProcessorEditor* SimpleEQAudioProcessor::createEditor()
 {
-    return new SimpleEQAudioProcessorEditor (*this);
+    //return new SimpleEQAudioProcessorEditor (*this);
+    return new juce::GenericAudioProcessorEditor(*this);
 }
 
 //==============================================================================
@@ -181,6 +183,101 @@ void SimpleEQAudioProcessor::setStateInformation (const void* data, int sizeInBy
 {
     // You should use this method to restore your parameters from this memory block,
     // whose contents will have been created by the getStateInformation() call.
+}
+
+//declaring createParameterLayout
+// SPEC: 3 BANDS: LOW, HIGH, PARAMETRIC/PEAK
+// Cut Bands: Controllable Frequency/ Shape
+// Parametric Band: Controllable Frequency, Gain, Quality (how narrow or wide peak is)
+juce::AudioProcessorValueTreeState::ParameterLayout SimpleEQAudioProcessor::createParameterLayout()
+{
+    // declaring a parameter layout (we want it to be a float if its a slider)
+    juce::AudioProcessorValueTreeState::ParameterLayout layout;
+    
+    //human hearing: 20hz - 20,000hz
+    //slider will change parameter value in steps of 1
+    //skew factor is slider response (ie. you can skew mapping logarithmically (factor <1.0 = lower end of range will fill more of slider's length [ie more of the slider will be lower hz], >1.0 = upper end of range will be expended)
+    //default value is the lowest (20hz) because we dont want to hear anything unless we move it
+    
+    //LOWCUT FREQUENCY (default value 20hz)
+    layout.add(std::make_unique<juce::AudioParameterFloat>(//paramID
+                                                           juce::ParameterID("LowCut Freq", 1),
+                                                           //parameter name
+                                                           "LowCut Freq",
+                                                           //normalisable range
+                                                           juce::NormalisableRange<float>(20.f, 20000.f, 1.f, 1.f),
+                                                           // default value
+                                                           20.f));
+    
+    //HIGHCUT FREQUENCY (default value 20000hz)
+    layout.add(std::make_unique<juce::AudioParameterFloat>(//paramID
+                                                           juce::ParameterID("HighCut Freq", 1),
+                                                           //parameter name
+                                                           "HighCut Freq",
+                                                           //normalisablerange type
+                                                           juce::NormalisableRange<float>(20.f, 20000.f, 1.f, 1.f),
+                                                           //default value
+                                                           20000.f));
+    
+    //PEAK FREQUENCY (default value 750z)
+    layout.add(std::make_unique<juce::AudioParameterFloat>(//paramID
+                                                           juce::ParameterID("Peak Freq", 1),
+                                                           //parameter name
+                                                           "Peak Freq",
+                                                           //normalisablerange type
+                                                           juce::NormalisableRange<float>(20.f, 20000.f, 1.f, 1.f),
+                                                           //default value
+                                                           750.f));
+    
+    //PEAK GAIN (expressed in decibels)
+    //range [-24, 24]
+    //step slider: 0.5 db
+    //linear behavior so skew by 1
+    //don't want to add any gain or cut so default value of 0
+    layout.add(std::make_unique<juce::AudioParameterFloat>(//paramID
+                                                           juce::ParameterID("Peak Gain", 1),
+                                                           //parameter name
+                                                           "Peak Gain",
+                                                           //normalisablerange type
+                                                           juce::NormalisableRange<float>(-24.f, 24.f, 1.f, 0.5f),
+                                                           //default value
+                                                           0.0f));
+    
+    //QUALITY CONTROL (how tight or how wide the peak band is)
+    //Narrow Q = high Q value
+    //Wide Q = low Q value
+    layout.add(std::make_unique<juce::AudioParameterFloat>(//paramID
+                                                           juce::ParameterID("Quality", 1),
+                                                           //parameter name
+                                                           "Quality",
+                                                           //normalisablerange type
+                                                           juce::NormalisableRange<float>(0.1f, 10.f, 0.05f, 1.f),
+                                                           //default value
+                                                           1.f));
+    
+    
+    //For lowcut and highcut filters, want the ability to change the steepness of the filter cut
+    //Cut filters are usually expressed in multiples of 6. For this project we are using (12, 24, 36, 48)
+    //since we are expressing these in terms of choices and not a range, we can use the AudioParameterChoice object
+    
+    // making a string of choices
+    juce::StringArray stringArray;
+    for (int i=0; i<4; ++i) {
+        juce::String str;
+        str << (12 + 12*i);
+        str << "db/Oct";
+        stringArray.add(str);
+    }
+    
+    //create audioparameter that intakes string of choices
+    //uses default value 0 so the filter will have a slope of 12db/Oct
+    //LOWCUT SLOPE
+    layout.add(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID("LowCut Slope", 1), "LowCut Slope", stringArray, 0));
+    
+    //HIGHCUT SLOPE
+    layout.add(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID("HighCut Slope", 1), "HighCut Slope", stringArray, 0));
+     
+    return layout;
 }
 
 //==============================================================================

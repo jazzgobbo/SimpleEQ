@@ -14,6 +14,7 @@
 //==============================================================================
 /**
 */
+// this is where all the visual elements happen 
 class SimpleEQAudioProcessorEditor  : public juce::AudioProcessorEditor
 {
 public:
