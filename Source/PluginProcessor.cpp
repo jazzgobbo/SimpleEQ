@@ -104,6 +104,22 @@ void SimpleEQAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlo
     leftChain.prepare(spec);
     rightChain.prepare(spec);
     
+    //helper functions using IIR class
+    auto chainSettings = getChainSettings(apvts);
+    //IIR:Coefficients object is a reference counted wrapped around an array
+    //we want to copy values over so we want to dereference it
+    auto peakCoefficients = juce::dsp::IIR::Coefficients<float>::makePeakFilter(sampleRate,
+                                                                                chainSettings.peakFreq,
+                                                                                chainSettings.peakQuality,
+                                                                                juce::Decibels::decibelsToGain(chainSettings.peakGainInDecibels));
+    
+    //access coefficients using .coefficients and assign what we wrote above
+    //dereference them using * on both sides
+    //at this point the peak has been set up and will make audible changes to audio running through it if the gain parameter is not 0
+    //whenever the slider changes we need to update the filter with new coefficients whenever the slider changes (do it next in process block)
+    *leftChain.get<ChainPositions::Peak>().coefficients = *peakCoefficients;
+    *rightChain.get<ChainPositions::Peak>().coefficients = *peakCoefficients;
+    
 }
 
 void SimpleEQAudioProcessor::releaseResources()
@@ -154,8 +170,26 @@ void SimpleEQAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
     // This is here to avoid people getting screaming feedback
     // when they first compile a plugin, but obviously you don't need to keep
     // this code if your algorithm always overwrites all the output channels.
+    
+    
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
+    
+    //helper functions using IIR class
+    auto chainSettings = getChainSettings(apvts);
+    //IIR:Coefficients object is a reference counted wrapped around an array
+    //we want to copy values over so we want to dereference it
+    auto peakCoefficients = juce::dsp::IIR::Coefficients<float>::makePeakFilter(getSampleRate(),
+                                                                                chainSettings.peakFreq,
+                                                                                chainSettings.peakQuality,
+                                                                                juce::Decibels::decibelsToGain(chainSettings.peakGainInDecibels));
+    
+    //access coefficients using .coefficients and assign what we wrote above
+    //dereference them using * on both sides
+    //at this point the peak has been set up and will make audible changes to audio running through it if the gain parameter is not 0
+    //whenever the slider changes we need to update the filter with new coefficients whenever the slider changes (do it next in process block)
+    *leftChain.get<ChainPositions::Peak>().coefficients = *peakCoefficients;
+    *rightChain.get<ChainPositions::Peak>().coefficients = *peakCoefficients;
 
     juce::dsp::AudioBlock<float> block(buffer);
     
@@ -200,6 +234,23 @@ void SimpleEQAudioProcessor::setStateInformation (const void* data, int sizeInBy
     // whose contents will have been created by the getStateInformation() call.
 }
 
+ChainSettings getChainSettings (juce::AudioProcessorValueTreeState& apvts) {
+    ChainSettings settings;
+    //get parameter values from apvts
+    //since the parameter is a normalized value you cant use the function below cause it expects real world values
+    //apvts.getParameter("lowCutFreq")->getValue();
+    //set up settings (initialize all variables
+    settings.lowCutFreq = apvts.getRawParameterValue("LowCut Freq")->load();
+    settings.highCutFreq = apvts.getRawParameterValue("HighCut Freq")->load();
+    settings.peakFreq = apvts.getRawParameterValue("Peak Freq")->load();
+    settings.peakGainInDecibels = apvts.getRawParameterValue("Peak Gain")->load();
+    settings.peakQuality = apvts.getRawParameterValue("Peak Quality")->load();
+    settings.lowCutSlope = apvts.getRawParameterValue("LowCut Slope")->load();
+    settings.highCutSlope = apvts.getRawParameterValue("HighCut Slope")->load();
+    
+    return settings;
+}
+
 //declaring createParameterLayout
 // SPEC: 3 BANDS: LOW, HIGH, PARAMETRIC/PEAK
 // Cut Bands: Controllable Frequency/ Shape
@@ -220,7 +271,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout SimpleEQAudioProcessor::crea
                                                            //parameter name
                                                            "LowCut Freq",
                                                            //normalisable range
-                                                           juce::NormalisableRange<float>(20.f, 20000.f, 1.f, 1.f),
+                                                           juce::NormalisableRange<float>(20.f, 20000.f, 1.f, 0.25f),
                                                            // default value
                                                            20.f));
     
@@ -230,7 +281,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout SimpleEQAudioProcessor::crea
                                                            //parameter name
                                                            "HighCut Freq",
                                                            //normalisablerange type
-                                                           juce::NormalisableRange<float>(20.f, 20000.f, 1.f, 1.f),
+                                                           juce::NormalisableRange<float>(20.f, 20000.f, 1.f, 0.25f),
                                                            //default value
                                                            20000.f));
     
@@ -240,7 +291,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout SimpleEQAudioProcessor::crea
                                                            //parameter name
                                                            "Peak Freq",
                                                            //normalisablerange type
-                                                           juce::NormalisableRange<float>(20.f, 20000.f, 1.f, 1.f),
+                                                           juce::NormalisableRange<float>(20.f, 20000.f, 1.f, 0.25f),
                                                            //default value
                                                            750.f));
     
@@ -254,7 +305,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout SimpleEQAudioProcessor::crea
                                                            //parameter name
                                                            "Peak Gain",
                                                            //normalisablerange type
-                                                           juce::NormalisableRange<float>(-24.f, 24.f, 1.f, 0.5f),
+                                                           juce::NormalisableRange<float>(-24.f, 24.f, 0.5f, 0.5f),
                                                            //default value
                                                            0.0f));
     
@@ -262,9 +313,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout SimpleEQAudioProcessor::crea
     //Narrow Q = high Q value
     //Wide Q = low Q value
     layout.add(std::make_unique<juce::AudioParameterFloat>(//paramID
-                                                           juce::ParameterID("Quality", 1),
+                                                           juce::ParameterID("Peak Quality", 1),
                                                            //parameter name
-                                                           "Quality",
+                                                           "Peak Quality",
                                                            //normalisablerange type
                                                            juce::NormalisableRange<float>(0.1f, 10.f, 0.05f, 1.f),
                                                            //default value

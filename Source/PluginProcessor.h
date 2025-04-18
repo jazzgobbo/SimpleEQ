@@ -10,6 +10,17 @@
 
 #include <JuceHeader.h>
 
+// extract parameters from audio processor value tree state (create data structure to represent all values)
+
+struct ChainSettings {
+    float peakFreq {0}, peakGainInDecibels {0}, peakQuality {1.f};
+    float lowCutFreq {0}, highCutFreq {0};
+    int lowCutSlope {0}, highCutSlope {0};
+};
+
+// helper function that will give all parameter values in data struct
+ChainSettings getChainSettings(juce::AudioProcessorValueTreeState& apvts);
+
 //==============================================================================
 /**
 */
@@ -76,6 +87,13 @@ private:
     using MonoChain = juce::dsp::ProcessorChain<CutFilter, Filter, CutFilter>;
     
     MonoChain leftChain, rightChain;
+    
+    //define an enum to return an index
+    enum ChainPositions {
+        LowCut,
+        Peak,
+        HighCut
+    };
     
     
     //==============================================================================
