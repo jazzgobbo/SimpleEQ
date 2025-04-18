@@ -56,12 +56,28 @@ public:
     void setStateInformation (const void* data, int sizeInBytes) override;
     
     // need an APVTS and need it public so we can add knobs and everyrhing
-    // createparameter layout gets called by apvts in type parameterLayout
+    // create parameter layout gets called by apvts in type parameterLayout
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
     
     juce::AudioProcessorValueTreeState apvts {*this, nullptr, "Parameters", createParameterLayout()};
-    
+    // since juce dsp library is built to process mono audio, we need to duplicate everything we do for stereo
 private:
+    // create a filer alias (peakfilter)
+    using Filter = juce::dsp::IIR::Filter<float>;
+    // since we are going between [12,24,36,48] db/Oct, we need 4 of these filters
+    // for dsp in JUCE:
+    // 1. define a Chain 2. pass in a Processing Context, which will run through each element of the chian automatically
+    // we can put 4 of these filters in a single processor chain, which will allow us to pass a single context and allow us to process all of the audio automatically
+    using CutFilter = juce::dsp::ProcessorChain<Filter, Filter, Filter, Filter>;
+    // if we configure as LOWPASS/HIGHPASS filter, it will have a default 12db slope
+    
+    //can represent parametric filter too
+    //need 2 instances of MonoChain if we want to do stereo processing
+    using MonoChain = juce::dsp::ProcessorChain<CutFilter, Filter, CutFilter>;
+    
+    MonoChain leftChain, rightChain;
+    
+    
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SimpleEQAudioProcessor)
 };
