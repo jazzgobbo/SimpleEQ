@@ -104,6 +104,85 @@ private:
         HighCut
     };
     
+    //cleaning up stuff that configures peak filter
+    void updatePeakFilter(const ChainSettings& chainSettings);
+    using Coefficients = Filter::CoefficientsPtr;
+    //& because it allows you to modify the original object, const because you cant make changes to the replacement
+    static void updateCoefficients(Coefficients& old, const Coefficients& replacements);
+    
+    template<typename ChainType, typename CoefficientType>
+    void updateCutFilter(ChainType& leftLowCut,
+                         const CoefficientType& cutCoefficients,
+                         const Slope lowCutSlope)
+                         //const ChainSettings& chainSettings)
+    {
+        //cut coefficients using helper function
+        //for order we have to do lowCutSlope + 1 * 2, since adding 1 and doubling will give us an order of 2,4,6, or 8
+        //std::cout << juce::String("sampleRate :") << juce::String(getSampleRate()) << std::endl;
+        //auto cutCoefficients = juce::dsp::FilterDesign<float>::designIIRHighpassHighOrderButterworthMethod(chainSettings.lowCutFreq,
+        //                                                                                                   getSampleRate(),
+        //                                                                                                   2 * (chainSettings.lowCutSlope + 1));
+        
+        
+        //initialize left chain
+        //auto& leftLowCut = leftChain.get<ChainPositions::LowCut>();
+        
+        // (bypass all links in left chain) there are 4 positions
+        leftLowCut.template setBypassed<0>(true);
+        leftLowCut.template setBypassed<1>(true);
+        leftLowCut.template setBypassed<2>(true);
+        leftLowCut.template setBypassed<3>(true);
+        
+        //use enum to display slope setting since enums decay to integers (which is what our choice parameter is expressed in)
+        switch (lowCutSlope){
+                
+                //if order is 2 = 12bc/oct slope, the helper function will return an array with 1 coefficient object only
+                //assign coefficients to first filter in cut filter chain and also stop bypassing that filter chain
+            case Slope_12:
+            {
+                //dereference left
+                *leftLowCut.template get<0>().coefficients = *cutCoefficients[0];
+                //stop bypassing particular left chain
+                leftLowCut.template setBypassed<0>(false);
+                break;
+            }
+                //now will assign to the first 2 links in the filter chain and stop by passing them
+            case Slope_24:
+            {
+                *leftLowCut.template get<0>().coefficients = *cutCoefficients[0];
+                leftLowCut.template setBypassed<0>(false);
+                *leftLowCut.template get<1>().coefficients = *cutCoefficients[1];
+                leftLowCut.template setBypassed<1>(false);
+                break;
+            }
+                //now will assign to the first 3 links in the filter chain and stop by passing them
+            case Slope_36:
+            {
+                *leftLowCut.template get<0>().coefficients = *cutCoefficients[0];
+                leftLowCut.template setBypassed<0>(false);
+                *leftLowCut.template get<1>().coefficients = *cutCoefficients[1];
+                leftLowCut.template setBypassed<1>(false);
+                *leftLowCut.template get<2>().coefficients = *cutCoefficients[2];
+                leftLowCut.template setBypassed<2>(false);
+                break;
+            }
+                //now will assign to the first 4 links in the filter chain and stop by passing them
+            case Slope_48:
+            {
+                *leftLowCut.template get<0>().coefficients = *cutCoefficients[0];
+                leftLowCut.template setBypassed<0>(false);
+                *leftLowCut.template get<1>().coefficients = *cutCoefficients[1];
+                leftLowCut.template setBypassed<1>(false);
+                *leftLowCut.template get<2>().coefficients = *cutCoefficients[2];
+                leftLowCut.template setBypassed<2>(false);
+                *leftLowCut.template get<3>().coefficients = *cutCoefficients[3];
+                leftLowCut.template setBypassed<3>(false);
+                break;
+            }
+        }
+        
+        
+    }
     
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SimpleEQAudioProcessor)
