@@ -120,7 +120,131 @@ void SimpleEQAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlo
     *leftChain.get<ChainPositions::Peak>().coefficients = *peakCoefficients;
     *rightChain.get<ChainPositions::Peak>().coefficients = *peakCoefficients;
     
-}
+    //helper function designIIRHighpass...
+    //function creates 1 IIR filter coefficient for every 2 orders (if order is 2 we get 1 set of coefficients 12db/oct, 2 we get 4 etc)
+    //cut coefficients using helper function
+    //for order we have to do lowCutSlope + 1 * 2, since adding 1 and doubling will give us an order of 2,4,6, or 8
+    auto cutCoefficients = juce::dsp::FilterDesign<float>::designIIRHighpassHighOrderButterworthMethod(chainSettings.lowCutFreq,
+                                                                                                       sampleRate,
+                                                                                                       2 * (chainSettings.lowCutSlope + 1));
+    
+    
+    //initialize left chain
+    auto& leftLowCut = leftChain.get<ChainPositions::LowCut>();
+    
+    // (bypass all links in left chain) there are 4 positions
+    leftLowCut.setBypassed<0>(true);
+    leftLowCut.setBypassed<1>(true);
+    leftLowCut.setBypassed<2>(true);
+    leftLowCut.setBypassed<3>(true);
+    
+    //use enum to display slope setting since enums decay to integers (which is what our choice parameter is expressed in)
+    switch (chainSettings.lowCutSlope){
+            
+            //if order is 2 = 12bc/oct slope, the helper function will return an array with 1 coefficient object only
+            //assign coefficients to first filter in cut filter chain and also stop bypassing that filter chain
+        case Slope_12:
+        {
+            //dereference left
+            *leftLowCut.get<0>().coefficients = *cutCoefficients[0];
+            //stop bypassing particular left chain
+            leftLowCut.setBypassed<0>(false);
+            break;
+        }
+            //now will assign to the first 2 links in the filter chain and stop by passing them
+        case Slope_24:
+        {
+            *leftLowCut.get<0>().coefficients = *cutCoefficients[0];
+            leftLowCut.setBypassed<0>(false);
+            *leftLowCut.get<1>().coefficients = *cutCoefficients[1];
+            leftLowCut.setBypassed<1>(false);
+            break;
+        }
+            //now will assign to the first 3 links in the filter chain and stop by passing them
+        case Slope_36:
+        {
+            *leftLowCut.get<0>().coefficients = *cutCoefficients[0];
+            leftLowCut.setBypassed<0>(false);
+            *leftLowCut.get<1>().coefficients = *cutCoefficients[1];
+            leftLowCut.setBypassed<1>(false);
+            *leftLowCut.get<2>().coefficients = *cutCoefficients[2];
+            leftLowCut.setBypassed<2>(false);
+            break;
+        }
+            //now will assign to the first 4 links in the filter chain and stop by passing them
+        case Slope_48:
+        {
+            *leftLowCut.get<0>().coefficients = *cutCoefficients[0];
+            leftLowCut.setBypassed<0>(false);
+            *leftLowCut.get<1>().coefficients = *cutCoefficients[1];
+            leftLowCut.setBypassed<1>(false);
+            *leftLowCut.get<2>().coefficients = *cutCoefficients[2];
+            leftLowCut.setBypassed<2>(false);
+            *leftLowCut.get<3>().coefficients = *cutCoefficients[3];
+            leftLowCut.setBypassed<3>(false);
+            break;
+        }
+    };
+    
+    //initialize right chain
+    auto& rightLowCut = rightChain.get<ChainPositions::LowCut>();
+    
+    // (bypass all links in right chain) there are 4 positions
+    rightLowCut.setBypassed<0>(true);
+    rightLowCut.setBypassed<1>(true);
+    rightLowCut.setBypassed<2>(true);
+    rightLowCut.setBypassed<3>(true);
+    
+    //use enum to display slope setting since enums decay to integers (which is what our choice parameter is expressed in)
+    switch (chainSettings.lowCutSlope){
+            
+            //if order is 2 = 12bc/oct slope, the helper function will return an array with 1 coefficient object only
+            //assign coefficients to first filter in cut filter chain and also stop bypassing that filter chain
+        case Slope_12:
+        {
+            //dereference left
+            *rightLowCut.get<0>().coefficients = *cutCoefficients[0];
+            //stop bypassing particular left chain
+            rightLowCut.setBypassed<0>(false);
+            break;
+        }
+            //now will assign to the first 2 links in the filter chain and stop by passing them
+        case Slope_24:
+        {
+            *rightLowCut.get<0>().coefficients = *cutCoefficients[0];
+            rightLowCut.setBypassed<0>(false);
+            *rightLowCut.get<1>().coefficients = *cutCoefficients[1];
+            rightLowCut.setBypassed<1>(false);
+            break;
+        }
+            //now will assign to the first 3 links in the filter chain and stop by passing them
+        case Slope_36:
+        {
+            *rightLowCut.get<0>().coefficients = *cutCoefficients[0];
+            rightLowCut.setBypassed<0>(false);
+            *rightLowCut.get<1>().coefficients = *cutCoefficients[1];
+            rightLowCut.setBypassed<1>(false);
+            *rightLowCut.get<2>().coefficients = *cutCoefficients[2];
+            rightLowCut.setBypassed<2>(false);
+            break;
+        }
+            //now will assign to the first 4 links in the filter chain and stop by passing them
+        case Slope_48:
+        {
+            *rightLowCut.get<0>().coefficients = *cutCoefficients[0];
+            rightLowCut.setBypassed<0>(false);
+            *rightLowCut.get<1>().coefficients = *cutCoefficients[1];
+            rightLowCut.setBypassed<1>(false);
+            *rightLowCut.get<2>().coefficients = *cutCoefficients[2];
+            rightLowCut.setBypassed<2>(false);
+            *rightLowCut.get<3>().coefficients = *cutCoefficients[3];
+            rightLowCut.setBypassed<3>(false);
+            break;
+        }
+    }
+};
+    
+
 
 void SimpleEQAudioProcessor::releaseResources()
 {
@@ -160,6 +284,7 @@ bool SimpleEQAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts)
 
 void SimpleEQAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
+    //std::cout << "entering process block" << std::endl;
     juce::ScopedNoDenormals noDenormals;
     auto totalNumInputChannels  = getTotalNumInputChannels();
     auto totalNumOutputChannels = getTotalNumOutputChannels();
@@ -190,6 +315,128 @@ void SimpleEQAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
     //whenever the slider changes we need to update the filter with new coefficients whenever the slider changes (do it next in process block)
     *leftChain.get<ChainPositions::Peak>().coefficients = *peakCoefficients;
     *rightChain.get<ChainPositions::Peak>().coefficients = *peakCoefficients;
+    
+    //cut coefficients using helper function
+    //for order we have to do lowCutSlope + 1 * 2, since adding 1 and doubling will give us an order of 2,4,6, or 8
+    //std::cout << juce::String("sampleRate :") << juce::String(getSampleRate()) << std::endl;
+    auto cutCoefficients = juce::dsp::FilterDesign<float>::designIIRHighpassHighOrderButterworthMethod(chainSettings.lowCutFreq,
+                                                                                                       getSampleRate(),
+                                                                                                       2 * (chainSettings.lowCutSlope + 1));
+    
+    
+    //initialize left chain
+    auto& leftLowCut = leftChain.get<ChainPositions::LowCut>();
+    
+    // (bypass all links in left chain) there are 4 positions
+    leftLowCut.setBypassed<0>(true);
+    leftLowCut.setBypassed<1>(true);
+    leftLowCut.setBypassed<2>(true);
+    leftLowCut.setBypassed<3>(true);
+    
+    //use enum to display slope setting since enums decay to integers (which is what our choice parameter is expressed in)
+    switch (chainSettings.lowCutSlope){
+            
+            //if order is 2 = 12bc/oct slope, the helper function will return an array with 1 coefficient object only
+            //assign coefficients to first filter in cut filter chain and also stop bypassing that filter chain
+        case Slope_12:
+        {
+            //dereference left
+            *leftLowCut.get<0>().coefficients = *cutCoefficients[0];
+            //stop bypassing particular left chain
+            leftLowCut.setBypassed<0>(false);
+            break;
+        }
+            //now will assign to the first 2 links in the filter chain and stop by passing them
+        case Slope_24:
+        {
+            *leftLowCut.get<0>().coefficients = *cutCoefficients[0];
+            leftLowCut.setBypassed<0>(false);
+            *leftLowCut.get<1>().coefficients = *cutCoefficients[1];
+            leftLowCut.setBypassed<1>(false);
+            break;
+        }
+            //now will assign to the first 3 links in the filter chain and stop by passing them
+        case Slope_36:
+        {
+            *leftLowCut.get<0>().coefficients = *cutCoefficients[0];
+            leftLowCut.setBypassed<0>(false);
+            *leftLowCut.get<1>().coefficients = *cutCoefficients[1];
+            leftLowCut.setBypassed<1>(false);
+            *leftLowCut.get<2>().coefficients = *cutCoefficients[2];
+            leftLowCut.setBypassed<2>(false);
+            break;
+        }
+            //now will assign to the first 4 links in the filter chain and stop by passing them
+        case Slope_48:
+        {
+            *leftLowCut.get<0>().coefficients = *cutCoefficients[0];
+            leftLowCut.setBypassed<0>(false);
+            *leftLowCut.get<1>().coefficients = *cutCoefficients[1];
+            leftLowCut.setBypassed<1>(false);
+            *leftLowCut.get<2>().coefficients = *cutCoefficients[2];
+            leftLowCut.setBypassed<2>(false);
+            *leftLowCut.get<3>().coefficients = *cutCoefficients[3];
+            leftLowCut.setBypassed<3>(false);
+            break;
+        }
+    };
+    
+    //initialize right chain
+    auto& rightLowCut = rightChain.get<ChainPositions::LowCut>();
+    
+    // (bypass all links in right chain) there are 4 positions
+    rightLowCut.setBypassed<0>(true);
+    rightLowCut.setBypassed<1>(true);
+    rightLowCut.setBypassed<2>(true);
+    rightLowCut.setBypassed<3>(true);
+    
+    //use enum to display slope setting since enums decay to integers (which is what our choice parameter is expressed in)
+    switch (chainSettings.lowCutSlope){
+            
+            //if order is 2 = 12bc/oct slope, the helper function will return an array with 1 coefficient object only
+            //assign coefficients to first filter in cut filter chain and also stop bypassing that filter chain
+        case Slope_12:
+        {
+            //dereference left
+            *rightLowCut.get<0>().coefficients = *cutCoefficients[0];
+            //stop bypassing particular left chain
+            rightLowCut.setBypassed<0>(false);
+            break;
+        }
+            //now will assign to the first 2 links in the filter chain and stop by passing them
+        case Slope_24:
+        {
+            *rightLowCut.get<0>().coefficients = *cutCoefficients[0];
+            rightLowCut.setBypassed<0>(false);
+            *rightLowCut.get<1>().coefficients = *cutCoefficients[1];
+            rightLowCut.setBypassed<1>(false);
+            break;
+        }
+            //now will assign to the first 3 links in the filter chain and stop by passing them
+        case Slope_36:
+        {
+            *rightLowCut.get<0>().coefficients = *cutCoefficients[0];
+            rightLowCut.setBypassed<0>(false);
+            *rightLowCut.get<1>().coefficients = *cutCoefficients[1];
+            rightLowCut.setBypassed<1>(false);
+            *rightLowCut.get<2>().coefficients = *cutCoefficients[2];
+            rightLowCut.setBypassed<2>(false);
+            break;
+        }
+            //now will assign to the first 4 links in the filter chain and stop by passing them
+        case Slope_48:
+        {
+            *rightLowCut.get<0>().coefficients = *cutCoefficients[0];
+            rightLowCut.setBypassed<0>(false);
+            *rightLowCut.get<1>().coefficients = *cutCoefficients[1];
+            rightLowCut.setBypassed<1>(false);
+            *rightLowCut.get<2>().coefficients = *cutCoefficients[2];
+            rightLowCut.setBypassed<2>(false);
+            *rightLowCut.get<3>().coefficients = *cutCoefficients[3];
+            rightLowCut.setBypassed<3>(false);
+            break;
+        }
+    }
 
     juce::dsp::AudioBlock<float> block(buffer);
     
@@ -204,7 +451,7 @@ void SimpleEQAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
     //pass contexts to mono filter chains
     leftChain.process(leftContext);
     rightChain.process(rightContext);
-    
+
     
 }
 
@@ -245,8 +492,8 @@ ChainSettings getChainSettings (juce::AudioProcessorValueTreeState& apvts) {
     settings.peakFreq = apvts.getRawParameterValue("Peak Freq")->load();
     settings.peakGainInDecibels = apvts.getRawParameterValue("Peak Gain")->load();
     settings.peakQuality = apvts.getRawParameterValue("Peak Quality")->load();
-    settings.lowCutSlope = apvts.getRawParameterValue("LowCut Slope")->load();
-    settings.highCutSlope = apvts.getRawParameterValue("HighCut Slope")->load();
+    settings.lowCutSlope = static_cast<Slope>(apvts.getRawParameterValue("LowCut Slope")->load());
+    settings.highCutSlope = static_cast<Slope>(apvts.getRawParameterValue("HighCut Slope")->load());
     
     return settings;
 }
