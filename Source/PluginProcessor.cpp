@@ -124,7 +124,7 @@ void SimpleEQAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlo
     updateCutFilter(leftLowCut, cutCoefficients, chainSettings.lowCutSlope);
     //initialize right chain
     auto& rightLowCut = rightChain.get<ChainPositions::LowCut>();
-    //call new function
+    //call new functionlo
     updateCutFilter(rightLowCut, cutCoefficients, chainSettings.lowCutSlope);
 };
     

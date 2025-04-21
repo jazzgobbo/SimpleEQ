@@ -94,7 +94,7 @@ private:
     //can represent parametric filter too
     //need 2 instances of MonoChain if we want to do stereo processing
     using MonoChain = juce::dsp::ProcessorChain<CutFilter, Filter, CutFilter>;
-    
+
     MonoChain leftChain, rightChain;
     
     //define an enum to return an index
@@ -109,6 +109,15 @@ private:
     using Coefficients = Filter::CoefficientsPtr;
     //& because it allows you to modify the original object, const because you cant make changes to the replacement
     static void updateCoefficients(Coefficients& old, const Coefficients& replacements);
+    
+    template <int Index, typename ChainType, typename CoefficientType>
+    void update(ChainType& chain, const CoefficientType& coefficients) {
+        //update the coefficients
+        updateCoefficients(chain.template get<Index>().coefficients, coefficients[Index]);
+        //set bypass to false
+        
+        
+    }
     
     template<typename ChainType, typename CoefficientType>
     void updateCutFilter(ChainType& leftLowCut,
@@ -133,8 +142,29 @@ private:
         leftLowCut.template setBypassed<2>(true);
         leftLowCut.template setBypassed<3>(true);
         
+        //cleaning up switch statement below
+        
         //use enum to display slope setting since enums decay to integers (which is what our choice parameter is expressed in)
         switch (lowCutSlope){
+            case Slope_48: {
+                update<3>(leftLowCut, cutCoefficients);
+                leftLowCut.template setBypassed<3>(false);
+            }
+            case Slope_36: {
+                update<2>(leftLowCut, cutCoefficients);
+                leftLowCut.template setBypassed<2>(false);
+            }
+            case Slope_24: {
+                update<1>(leftLowCut, cutCoefficients);
+                leftLowCut.template setBypassed<1>(false);
+            }
+            case Slope_12: {
+                update<0>(leftLowCut, cutCoefficients);
+                leftLowCut.template setBypassed<0>(false);
+            }
+                
+                
+                /*
                 
                 //if order is 2 = 12bc/oct slope, the helper function will return an array with 1 coefficient object only
                 //assign coefficients to first filter in cut filter chain and also stop bypassing that filter chain
@@ -179,7 +209,9 @@ private:
                 leftLowCut.template setBypassed<3>(false);
                 break;
             }
+                 */
         }
+                 
         
         
     }
