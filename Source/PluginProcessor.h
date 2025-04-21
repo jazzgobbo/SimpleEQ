@@ -115,14 +115,16 @@ private:
         //update the coefficients
         updateCoefficients(chain.template get<Index>().coefficients, coefficients[Index]);
         //set bypass to false
+        chain.template setBypassed<Index>(false);
+        
         
         
     }
     
     template<typename ChainType, typename CoefficientType>
-    void updateCutFilter(ChainType& leftLowCut,
-                         const CoefficientType& cutCoefficients,
-                         const Slope lowCutSlope)
+    void updateCutFilter(ChainType& chain,
+                         const CoefficientType& coefficients,
+                         const Slope& slope)
                          //const ChainSettings& chainSettings)
     {
         //cut coefficients using helper function
@@ -137,30 +139,34 @@ private:
         //auto& leftLowCut = leftChain.get<ChainPositions::LowCut>();
         
         // (bypass all links in left chain) there are 4 positions
-        leftLowCut.template setBypassed<0>(true);
-        leftLowCut.template setBypassed<1>(true);
-        leftLowCut.template setBypassed<2>(true);
-        leftLowCut.template setBypassed<3>(true);
+        chain.template setBypassed<0>(true);
+        chain.template setBypassed<1>(true);
+        chain.template setBypassed<2>(true);
+        chain.template setBypassed<3>(true);
         
         //cleaning up switch statement below
         
         //use enum to display slope setting since enums decay to integers (which is what our choice parameter is expressed in)
-        switch (lowCutSlope){
+        switch (slope){
             case Slope_48: {
-                update<3>(leftLowCut, cutCoefficients);
-                leftLowCut.template setBypassed<3>(false);
+                update<3>(chain, coefficients);
+                //chain.template setBypassed<3>(false);
+                //leftLowCut.template setBypassed<3>(false);
             }
             case Slope_36: {
-                update<2>(leftLowCut, cutCoefficients);
-                leftLowCut.template setBypassed<2>(false);
+                update<2>(chain, coefficients);
+                //chain.template setBypassed<2>(false);
+                //leftLowCut.template setBypassed<2>(false);
             }
             case Slope_24: {
-                update<1>(leftLowCut, cutCoefficients);
-                leftLowCut.template setBypassed<1>(false);
+                update<1>(chain, coefficients);
+                //chain.template setBypassed<1>(false);
+                //leftLowCut.template setBypassed<1>(false);
             }
             case Slope_12: {
-                update<0>(leftLowCut, cutCoefficients);
-                leftLowCut.template setBypassed<0>(false);
+                update<0>(chain, coefficients);
+                //chain.template setBypassed<0>(false);
+                //leftLowCut.template setBypassed<0>(false);
             }
                 
                 
@@ -215,6 +221,9 @@ private:
         
         
     }
+    void updateLowCutFilters (const ChainSettings& chainSettings);
+    void updateHighCutFilters (const ChainSettings& chainSettings);
+    void updateFilters();
     
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SimpleEQAudioProcessor)
