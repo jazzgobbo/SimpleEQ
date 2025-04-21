@@ -48,6 +48,19 @@ private:
     lowCutSlopeSlider,
     highCutSlopeSlider;
     
+    //apvts has an attachment class that makes it easy to connect sliders to parameters (using typename to help with readability)
+    using APVTS = juce::AudioProcessorValueTreeState;
+    using Attachment = APVTS::SliderAttachment;
+    
+    //create 1 attachment for every one of the sliders
+    Attachment peakFreqSliderAttachment,
+                peakGainSliderAttachment,
+                peakQualitySliderAttachment,
+                lowCutFreqSliderAttachment,
+                highCutFreqSliderAttachment,
+                lowCutSlopeSliderAttachment,
+                highCutSlopeSliderAttachment;
+    
     //implementing a vector so you can iterate through them easily
     std::vector<juce::Component*> getComps();
     
