@@ -35,12 +35,102 @@ SimpleEQAudioProcessorEditor::~SimpleEQAudioProcessorEditor()
 //==============================================================================
 void SimpleEQAudioProcessorEditor::paint (juce::Graphics& g)
 {
+    //so we don't have to keep typing juce::..
+    using namespace juce;
+    
+    // PREVIOUS CODE
     // (Our component is opaque, so we must completely fill the background with a solid colour)
-    g.fillAll (getLookAndFeel().findColour (juce::ResizableWindow::backgroundColourId));
+    // g.fillAll (getLookAndFeel().findColour (juce::ResizableWindow::backgroundColourId));
+    // g.setColour (juce::Colours::white);
+    // g.setFont (juce::FontOptions (15.0f));
+    // g.drawFittedText ("Hello World!", getLocalBounds(), juce::Justification::centred, 1);
+    
+    g.fillAll (Colours::black);
+    auto bounds = getLocalBounds();
+    // need response area
+    auto responseArea = bounds.removeFromTop(bounds.getHeight() * 0.33);
+    // and width
+    auto w = responseArea.getWidth();
+    
+    // need chain elements
+    auto& lowcut = monoChain.get<ChainPositions::LowCut>();
+    auto& highcut = monoChain.get<ChainPositions::HighCut>();
+    auto& peak = monoChain.get<ChainPositions::Peak>();
+    
+    //call get magnitude for frequency function for each element in the chain
+    auto sampleRate = audioProcessor.getSampleRate();
+    // need a place to store all the magnitudes (doubles)
+    std::vector<double> mags;
+    // 1 magnitude per pixel so create space we need
+    mags.resize(w);
+    // iterate thorugh each pixel and compute magnitude at that frequency
+    for (int i = 0; i < w; ++i )
+    {
+        // magnitude expressed as gain units (multiplicatibe) so start with 1
+        double mag = 1.f;
+        // call magnitude function for a particular pixed mapped from pixel space to frequency space
+        auto freq = mapToLog10(double(i) / double(w), 20.0, 20000.0);
+        
+        // check if a band is bypassed, if it is then we won't do this function
+        if (! monoChain.isBypassed<ChainPositions::Peak>())
+            mag *= peak.coefficients-> getMagnitudeForFrequency(freq, sampleRate);
+        // do the same thing for every other fiklter in the low and highcut chains
+        
+        //lowcut is defined as its own processor chain, so we need to get each individual element of it
+        if (! lowcut.isBypassed<0>())
+            mag *= lowcut.get<0>().coefficients-> getMagnitudeForFrequency(freq, sampleRate);
+        if (! lowcut.isBypassed<1>())
+            mag *= lowcut.get<1>().coefficients-> getMagnitudeForFrequency(freq, sampleRate);
+        if (! lowcut.isBypassed<2>())
+            mag *= lowcut.get<2>().coefficients-> getMagnitudeForFrequency(freq, sampleRate);
+        if (! lowcut.isBypassed<3>())
+            mag *= lowcut.get<3>().coefficients-> getMagnitudeForFrequency(freq, sampleRate);
+        
+        if (! highcut.isBypassed<0>())
+            mag *= highcut.get<0>().coefficients-> getMagnitudeForFrequency(freq, sampleRate);
+        if (! highcut.isBypassed<1>())
+            mag *= highcut.get<1>().coefficients-> getMagnitudeForFrequency(freq, sampleRate);
+        if (! highcut.isBypassed<2>())
+            mag *= highcut.get<2>().coefficients-> getMagnitudeForFrequency(freq, sampleRate);
+        if (! highcut.isBypassed<3>())
+            mag *= highcut.get<3>().coefficients-> getMagnitudeForFrequency(freq, sampleRate);
+        
+        //convert magnitude into decibels and store it
+        mags[i] = Decibels::gainToDecibels(mag);
+    }
+    //build path from the vecot of decibels
+    Path responseCurve;
+    // map decibel value to response area
+    // define max and minimum positions in the window
+    const double outputMin = responseArea.getBottom();
+    const double outputMax = responseArea.getY();
+    auto map = [outputMin, outputMax](double input)
+    {
+        // 24s because becasue peak control goes from -24 to +24, so the window should be this range
+        return jmap(input, -24.0, 24.0, outputMin, outputMax);
+    };
+    
+    //left edge of the component, first value will be map(mags.front())
+    responseCurve.startNewSubPath(responseArea.getX(), map(mags.front()));
+    
+    // create line
+    for ( size_t i = 1; i < mags.size(); ++i )
+    {
+        responseCurve.lineTo(responseArea.getX() + i, map(mags[i]));
+    }
+    
+    // draw background
+    g.setColour(Colours::orange);
+    g.drawRoundedRectangle(responseArea.toFloat(), 4.f, 1.f); //line thickness is 1
+    // draw path
+    g.setColour(Colours::white);
+    g.strokePath(responseCurve, PathStrokeType(2.f));
+    
+    
+    
+    
 
-    g.setColour (juce::Colours::white);
-    g.setFont (juce::FontOptions (15.0f));
-    g.drawFittedText ("Hello World!", getLocalBounds(), juce::Justification::centred, 1);
+    
 }
 
 void SimpleEQAudioProcessorEditor::resized()
