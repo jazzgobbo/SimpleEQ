@@ -396,13 +396,22 @@ ChainSettings getChainSettings (juce::AudioProcessorValueTreeState& apvts) {
     return settings;
 }
 
+//implement free function
+Coefficients makePeakFilter(const ChainSettings& chainSettings, double sampleRate)
+{
+    //this was originally in updatepeakfilter
+    return juce::dsp::IIR::Coefficients<float>::makePeakFilter(sampleRate,
+                                                               chainSettings.peakFreq,
+                                                               chainSettings.peakQuality,
+                                                               juce::Decibels::decibelsToGain(chainSettings.peakGainInDecibels));
+}
+
 //implement refactoring function beneath where we are getting the chain settings
 //copy the implementation from the process block (paste here), repaste in process block & do the same thing in prepare to play
 void SimpleEQAudioProcessor::updatePeakFilter(const ChainSettings &chainSettings) {
-    auto peakCoefficients = juce::dsp::IIR::Coefficients<float>::makePeakFilter(getSampleRate(),
-                                                                                chainSettings.peakFreq,
-                                                                                chainSettings.peakQuality,
-                                                                                juce::Decibels::decibelsToGain(chainSettings.peakGainInDecibels));
+    
+    //call the makePeakFilter function
+    auto peakCoefficients = makePeakFilter(chainSettings, getSampleRate());
     //access coefficients using .coefficients and assign what we wrote above
     //dereference them using * on both sides
     //at this point the peak has been set up and will make audible changes to audio running through it if the gain parameter is not 0
@@ -414,7 +423,7 @@ void SimpleEQAudioProcessor::updatePeakFilter(const ChainSettings &chainSettings
     updateCoefficients(rightChain.get<ChainPositions::Peak>().coefficients, peakCoefficients);
 }
 
-void SimpleEQAudioProcessor::updateCoefficients(Coefficients &old, const Coefficients &replacements) {
+void updateCoefficients(Coefficients &old, const Coefficients &replacements) {
     //reference objects allocated on the heap so we need to dereference them to get the underlying object
     *old = *replacements;
 }
