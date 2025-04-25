@@ -160,6 +160,23 @@ void SimpleEQAudioProcessorEditor::resized()
     
 }
 
+//set up parameterValue changed callback
+void SimpleEQAudioProcessorEditor::parameterValueChanged(int parameterIndex, float newValue) {
+    //set atomic flag to true
+    parametersChanged.set(true);
+}
+
+//set up timer callback
+void SimpleEQAudioProcessorEditor::timerCallback()
+{
+    //see if it is true, if it is we want to set it back to false
+    if (parametersChanged.compareAndSetBool(false, true))
+    {
+        //update monochain
+        //trigger a repaint
+    };
+}
+
 std::vector<juce::Component*> SimpleEQAudioProcessorEditor::getComps()
 {
     return
