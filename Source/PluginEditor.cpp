@@ -25,11 +25,31 @@ highCutSlopeSliderAttachment(audioProcessor.apvts, "HighCut Slope", highCutSlope
     for (auto* comp : getComps()) {
         addAndMakeVisible(comp);
     }
+    
+    //now that we can update any peak filter link with the chain settings, we need to listen for when the parameters actually change
+    // grab all parameters from audio processor and add ourself as a listener
+    const auto& params = audioProcessor.getParameters();
+    //loop through them
+    for ( auto param : params )
+    {
+        //getParameters function returns an array of pointers
+        param->addListener(this);
+    }
+    
+    //start with a 60hz refresh rate
+    startTimerHz(60);
+
     setSize (600, 400);
 }
 
 SimpleEQAudioProcessorEditor::~SimpleEQAudioProcessorEditor()
 {
+    //if we register as a listener, we need to deregister as a listener
+    const auto& params = audioProcessor.getParameters();
+    for ( auto param : params )
+    {
+        param->removeListener(this);
+    }
 }
 
 //==============================================================================
@@ -173,7 +193,15 @@ void SimpleEQAudioProcessorEditor::timerCallback()
     if (parametersChanged.compareAndSetBool(false, true))
     {
         //update monochain
+        //grab chain settings
+        auto chainSettings = getChainSettings(audioProcessor.apvts);
+        //make coefficients for peak band
+        auto peakCoefficients = makePeakFilter(chainSettings, audioProcessor.getSampleRate());
+        //update our old (peak from monochain) coefficients with new replacements (peakCoefficients)
+        updateCoefficients(monoChain.get<ChainPositions::Peak>().coefficients, peakCoefficients);
+        
         //trigger a repaint
+        repaint();
     };
 }
 
